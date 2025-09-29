@@ -6,38 +6,40 @@ URL = "https://gateway.thegraph.com/api/subgraphs/id/5zvR82QoaXYFyDEKLZ9t6v9adgn
 API_KEY = "5762403578020d8bca2128a9f926a746"  # 请替换为你的真实 API key
 
 # 查询参数已写死
-POOL_ID = "0x11950d141ecb863f01007add7d1a342041227b58"
-CUSTOM_TIMESTAMP_GTE = "1758748787" # 用户指定的起始时间戳
+POOL_ID = "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640"
+CUSTOM_TIMESTAMP_GTE = "1727481600" # 用户指定的起始时间戳
 FIRST = 1000  # 每次查询的记录数
 INITIAL_SKIP = 0  # 初始跳过的记录数，保持不变
-FILE_BATCH_SIZE = 1000000  # 每100000条记录创建一个新的CSV文件
+FILE_BATCH_SIZE = 1000000  # 每1000000条记录创建一个新的CSV文件
 
 # CSV文件基础保存路径
-CSV_BASE_PATH = "/Users/fanjinchen/python/learn/swaps_data_batch_"  # 从这里开始是新的文件存储路径
+CSV_BASE_PATH = "/Users/fanjinchen/python/learn/burns_data_USDC_ETH/burns_data_USDC_ETH_"  # 从这里开始是新的文件存储路径
 # 时间戳日志文件路径
-TIMESTAMP_LOG_FILE = "last_successful_timestamp.csv"
+TIMESTAMP_LOG_FILE = "last_successful_timestamp_burns.csv"
 
 
 def build_query(skip, timestamp_gte):
     """构建GraphQL查询语句"""
     return """
     {{ 
-      swaps(
+      burns(
         where: {{pool: "{POOL_ID}", timestamp_gte: "{timestamp_gte}"}},
         orderBy: timestamp,
         orderDirection: asc,
         first: {FIRST},
         skip: {skip}
       ) {{ 
+        amount 
+        amount1 
+        amount0 
+        owner 
+        tickLower 
+        tickUpper 
+        timestamp 
         transaction {{ 
-          blockNumber
-          id
-          timestamp
-        }}
-        tick
-        sqrtPriceX96
-        amount0
-        amount1
+          blockNumber 
+          id 
+        }} 
       }}
     }}
     """.format(
@@ -48,8 +50,8 @@ def build_query(skip, timestamp_gte):
         )
 
 
-def fetch_swaps_data(skip, timestamp_gte):
-    """获取swaps数据"""
+def fetch_burns_data(skip, timestamp_gte):
+    """获取burns数据"""
     headers = {
         "Authorization": f"Bearer {API_KEY}"
     }
@@ -73,11 +75,11 @@ def fetch_swaps_data(skip, timestamp_gte):
                 print("API查询错误：", res['errors'])
                 return None
             
-            if 'data' not in res or 'swaps' not in res['data']:
+            if 'data' not in res or 'burns' not in res['data']:
                 print("API返回异常：", res)
                 return None
             
-            return res['data']['swaps']
+            return res['data']['burns']
             
         except requests.exceptions.SSLError as e:
             retry_count += 1
@@ -132,10 +134,10 @@ def get_current_csv_file(total_records_processed):
     return f"{CSV_BASE_PATH}{batch_number}.csv"
 
 
-def append_to_csv(swaps_data, total_records_processed):
+def append_to_csv(burns_data, total_records_processed):
     """将数据写入到当前批次的CSV文件"""
     # 检查是否有数据
-    if not swaps_data:
+    if not burns_data:
         print("没有数据可保存")
         return
     
@@ -144,13 +146,15 @@ def append_to_csv(swaps_data, total_records_processed):
     
     # 定义CSV文件的列标题，只包含查询返回的字段
     fieldnames = [
-        'transaction_id',
-        'transaction_blockNumber',
-        'transaction_timestamp',
-        'tick',
-        'sqrtPriceX96',
+        'amount',
+        'amount1',
         'amount0',
-        'amount1'
+        'owner',
+        'tickLower',
+        'tickUpper',
+        'timestamp',
+        'transaction_blockNumber',
+        'transaction_id'
     ]
     
     # 检查文件是否存在，不存在则创建并写入表头
@@ -168,15 +172,17 @@ def append_to_csv(swaps_data, total_records_processed):
         if not file_exists:
             writer.writeheader()
         
-        for swap in swaps_data:
+        for burn in burns_data:
             writer.writerow({
-                'transaction_id': swap['transaction']['id'],
-                'transaction_blockNumber': swap['transaction']['blockNumber'],
-                'transaction_timestamp': swap['transaction']['timestamp'],
-                'tick': swap['tick'],
-                'sqrtPriceX96': swap['sqrtPriceX96'],
-                'amount0': swap['amount0'],
-                'amount1': swap['amount1']
+                'amount': burn['amount'],
+                'amount1': burn['amount1'],
+                'amount0': burn['amount0'],
+                'owner': burn['owner'],
+                'tickLower': burn['tickLower'],
+                'tickUpper': burn['tickUpper'],
+                'timestamp': burn['timestamp'],
+                'transaction_blockNumber': burn['transaction']['blockNumber'],
+                'transaction_id': burn['transaction']['id']
             })
     
     # 统计CSV文件中的总记录数
@@ -191,12 +197,12 @@ def append_to_csv(swaps_data, total_records_processed):
     except Exception as e:
         print(f"统计CSV文件记录数时出错: {str(e)}")
     
-    print(f"数据已成功写入到 {current_csv_file}，新增 {len(swaps_data)} 条记录，文件总记录数: {total_records_in_file}")
+    print(f"数据已成功写入到 {current_csv_file}，新增 {len(burns_data)} 条记录，文件总记录数: {total_records_in_file}")
 
 
 def main():
     """主函数，实现分页查询并按批次保存数据到不同的CSV文件"""
-    all_swaps = []  # 用于跟踪所有数据以便记录最后时间戳
+    all_burns = []  # 用于跟踪所有数据以便记录最后时间戳
     skip = INITIAL_SKIP
     total_records = 0  # 已处理的总记录数
     timestamp_gte = CUSTOM_TIMESTAMP_GTE
@@ -209,72 +215,50 @@ def main():
     try:
         while True:
             print(f"获取第 {skip+1} 到 {skip+FIRST} 条记录...")
-            swaps = fetch_swaps_data(skip, timestamp_gte)
+            burns = fetch_burns_data(skip, timestamp_gte)
             
             # 检查是否获取到数据
-            if not swaps:
+            if not burns:
                 error_msg = "API返回空数据或请求失败"
                 print(f"没有获取到更多数据或发生错误: {error_msg}")
                 # 已经实时写入，无需额外处理
                 # 如果已经获取了一些数据，记录最后一条的时间戳
-                if all_swaps:
-                    last_timestamp = all_swaps[-1]['transaction']['timestamp']
+                if all_burns:
+                    last_timestamp = all_burns[-1]['timestamp']
                     log_last_timestamp(last_timestamp, error_msg)
                 break
             
-            # 检查每条数据的时间戳是否超过限制
-            has_exceeded_timestamp = False
-            filtered_swaps = []
-            for swap in swaps:
-                # 将字符串类型的timestamp转换为整数
-                current_timestamp = int(swap['transaction']['timestamp'])
-                if current_timestamp > 1759024355:
-                    has_exceeded_timestamp = True
-                    # 不添加这条记录，因为它超过了时间戳限制
-                else:
-                    filtered_swaps.append(swap)
-
-            # 将过滤后的数据添加到总列表
-            all_swaps.extend(filtered_swaps)
-            total_records += len(filtered_swaps)
+            # 将数据添加到总列表
+            all_burns.extend(burns)
+            total_records += len(burns)
             
             # 写入数据到当前批次的CSV文件
-            if filtered_swaps:
+            if burns:
                 # 计算写入前的总记录数，用于确定应该写入哪个文件
-                records_before_append = total_records - len(filtered_swaps)
-                append_to_csv(filtered_swaps, records_before_append)
-
-            # 如果有记录的时间戳超过限制，停止获取更多数据
-            if has_exceeded_timestamp:
-                print("检测到时间戳大于1759024355的记录，停止获取更多数据")
-                # 已经实时写入，无需额外处理
-                # 记录最后一条记录的时间戳
-                if all_swaps:
-                    last_timestamp = all_swaps[-1]['transaction']['timestamp']
-                    log_last_timestamp(last_timestamp, "达到时间戳上限")
-                break
+                records_before_append = total_records - len(burns)
+                append_to_csv(burns, records_before_append)
 
             # 检查是否没有更多数据
-            if len(filtered_swaps) < FIRST:
+            if len(burns) < FIRST:
                 # 已经实时写入，无需额外处理
-                if all_swaps:
-                    last_timestamp = all_swaps[-1]['transaction']['timestamp']
+                if all_burns:
+                    last_timestamp = all_burns[-1]['timestamp']
                     log_last_timestamp(last_timestamp, "已获取所有可用数据")
                 break
             
             # 更新skip值，准备获取下一页数据
-            # 使用原始的swaps长度来更新skip，因为API是按原始数量分页的
-            skip += len(swaps)
+            # 使用原始的burns长度来更新skip，因为API是按原始数量分页的
+            skip += len(burns)
             
             # 添加延迟，避免请求过于频繁
             time.sleep(1)
     except KeyboardInterrupt:
         print("\n程序被用户中断")
         # 已经实时写入，无需额外处理
-        if all_swaps:
-            last_timestamp = all_swaps[-1]['transaction']['timestamp']
+        if all_burns:
+            last_timestamp = all_burns[-1]['timestamp']
             log_last_timestamp(last_timestamp, "程序被用户中断")
-            print(f"已保存 {len(all_swaps)} 条新记录")
+            print(f"已保存 {len(all_burns)} 条新记录")
             return
         else:
             print("没有获取到任何新数据")
@@ -283,10 +267,10 @@ def main():
         error_msg = str(e)
         print(f"发生未预期的错误: {error_msg}")
         # 已经实时写入，无需额外处理
-        if all_swaps:
-            last_timestamp = all_swaps[-1]['transaction']['timestamp']
+        if all_burns:
+            last_timestamp = all_burns[-1]['timestamp']
             log_last_timestamp(last_timestamp, error_msg)
-            print(f"已保存 {len(all_swaps)} 条新记录")
+            print(f"已保存 {len(all_burns)} 条新记录")
             return
         else:
             print("没有获取到任何新数据")
@@ -295,8 +279,8 @@ def main():
     # 已经实时写入，无需额外处理
     
     # 在正常完成数据获取时记录最后一条记录的时间戳
-    if all_swaps:
-        last_timestamp = all_swaps[-1]['transaction']['timestamp']
+    if all_burns:
+        last_timestamp = all_burns[-1]['timestamp']
         log_last_timestamp(last_timestamp, "正常完成数据获取")
         print(f"总新增记录数：{total_records}")
     else:

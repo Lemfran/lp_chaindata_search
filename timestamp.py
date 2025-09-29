@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo
 
 # 定义日期时间字符串
 a = "Sep-28-2025 01:52:35 AM +UTC"
-date_str = "Jan-01-2024 12:00:00 AM +UTC"
+date_str = "Sep-28-2024 12:00:00 AM +UTC"
 
 # 处理 '+UTC' 格式，将其替换为 'UTC'
 a_with_utc = a.replace('+UTC', 'UTC')

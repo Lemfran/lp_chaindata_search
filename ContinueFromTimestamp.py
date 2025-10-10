@@ -10,7 +10,7 @@ POOL_ID = "0x11950d141ecb863f01007add7d1a342041227b58"
 CUSTOM_TIMESTAMP_GTE = "1758748787" # 用户指定的起始时间戳
 FIRST = 1000  # 每次查询的记录数
 INITIAL_SKIP = 0  # 初始跳过的记录数，保持不变
-FILE_BATCH_SIZE = 1000000  # 每100000条记录创建一个新的CSV文件
+FILE_BATCH_SIZE = 1000000  # 每1000000条记录创建一个新的CSV文件
 
 # CSV文件基础保存路径
 CSV_BASE_PATH = "/Users/fanjinchen/python/learn/swaps_data_batch_"  # 从这里开始是新的文件存储路径

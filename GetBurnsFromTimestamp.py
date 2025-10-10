@@ -6,16 +6,16 @@ URL = "https://gateway.thegraph.com/api/subgraphs/id/5zvR82QoaXYFyDEKLZ9t6v9adgn
 API_KEY = "5762403578020d8bca2128a9f926a746"  # 请替换为你的真实 API key
 
 # 查询参数已写死
-POOL_ID = "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640"
+POOL_ID = "0x11950d141ecb863f01007add7d1a342041227b58"
 CUSTOM_TIMESTAMP_GTE = "1727481600" # 用户指定的起始时间戳
 FIRST = 1000  # 每次查询的记录数
 INITIAL_SKIP = 0  # 初始跳过的记录数，保持不变
 FILE_BATCH_SIZE = 1000000  # 每1000000条记录创建一个新的CSV文件
 
 # CSV文件基础保存路径
-CSV_BASE_PATH = "/Users/fanjinchen/python/learn/burns_data_USDC_ETH/burns_data_USDC_ETH_"  # 从这里开始是新的文件存储路径
+CSV_BASE_PATH = "/Users/fanjinchen/python/learn/burns_data_PEPE_ETH_"  # 从这里开始是新的文件存储路径
 # 时间戳日志文件路径
-TIMESTAMP_LOG_FILE = "last_successful_timestamp_burns.csv"
+TIMESTAMP_LOG_FILE = "last_successful_timestamp_burns_1.csv"
 
 
 def build_query(skip, timestamp_gte):
@@ -228,15 +228,36 @@ def main():
                     log_last_timestamp(last_timestamp, error_msg)
                 break
             
-            # 将数据添加到总列表
-            all_burns.extend(burns)
-            total_records += len(burns)
+            # 检查每条数据的时间戳是否超过限制
+            has_exceeded_timestamp = False
+            filtered_burns = []
+            for burn in burns:
+                # 将字符串类型的timestamp转换为整数
+                current_timestamp = int(burn['timestamp'])
+                if current_timestamp > 1759024355:
+                    has_exceeded_timestamp = True
+                    # 不添加这条记录，因为它超过了时间戳限制
+                else:
+                    filtered_burns.append(burn)
+
+            # 将过滤后的数据添加到总列表
+            all_burns.extend(filtered_burns)
+            total_records += len(filtered_burns)
             
             # 写入数据到当前批次的CSV文件
-            if burns:
+            if filtered_burns:
                 # 计算写入前的总记录数，用于确定应该写入哪个文件
-                records_before_append = total_records - len(burns)
-                append_to_csv(burns, records_before_append)
+                records_before_append = total_records - len(filtered_burns)
+                append_to_csv(filtered_burns, records_before_append)
+
+            # 如果有记录的时间戳超过限制，停止获取更多数据
+            if has_exceeded_timestamp:
+                print("检测到时间戳大于1759024355的记录，停止获取更多数据")
+                # 已经实时写入，无需额外处理
+                if all_burns:
+                    last_timestamp = all_burns[-1]['timestamp']
+                    log_last_timestamp(last_timestamp, "已达到时间戳限制")
+                break
 
             # 检查是否没有更多数据
             if len(burns) < FIRST:

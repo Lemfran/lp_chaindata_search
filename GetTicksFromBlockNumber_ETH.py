@@ -16,9 +16,9 @@ FIRST = 2000  # 每次查询的记录数
 FILE_BATCH_SIZE = 1000000  # 每1000000条记录创建一个新的CSV文件
 
 # CSV文件基础保存路径
-CSV_BASE_PATH = "/Users/fanjinchen/python/learn/ticks_data_NEW_POOL_"  # 新的文件存储路径，与原文件区分
+CSV_BASE_PATH = "/Users/fanjinchen/python/learn/ticks_data_ETH_"  # 新的文件存储路径，与原文件区分
 # 区块号和tickIdx日志文件路径，使用不同的文件名避免与原文件冲突
-BLOCK_LOG_FILE = "last_successful_block_tick_new_pool.csv"
+BLOCK_LOG_FILE = "last_successful_block_tick_ETH.csv"
 
 
 def build_query(block_number, tick_idx_gt, tick_idx_lte):
@@ -137,7 +137,7 @@ def get_last_block_and_tick():
             
             if last_row:
                 # 如果有最后一行数据，返回区块号和tickIdx
-                return int(last_row['block_number']), last_row['tick_idx']
+                return int(last_row['block_number']), int(last_row['tick_idx'])
     except FileNotFoundError:
         pass
     except Exception as e:
@@ -219,6 +219,10 @@ def main():
     # 从日志文件中获取最后一次的区块号和tickIdx，如果没有则使用初始值
     block_number, tick_idx_gt = get_last_block_and_tick()
     
+    if tick_idx_gt >= TICK_IDX_LTE:
+        tick_idx_gt = INITIAL_TICK_IDX_GT
+        block_number = block_number + BLOCK_STEP
+    
     print(f"开始从区块号 {block_number} 和tickIdx_gt {tick_idx_gt} 获取数据...")
     print(f"每次查询区块号增加 {BLOCK_STEP}")
     print(f"每 {FILE_BATCH_SIZE} 条记录将创建一个新的CSV文件")
@@ -253,6 +257,7 @@ def main():
 
             # 更新区块号，准备获取下一个区块的数据
             block_number += BLOCK_STEP
+            tick_idx_gt = INITIAL_TICK_IDX_GT
             
             # 检查是否超过最大区块号限制
             if block_number > MAX_BLOCK_NUMBER:
@@ -262,10 +267,6 @@ def main():
                     last_tick = all_ticks[-1]
                     log_last_block_and_tick(block_number - BLOCK_STEP, last_tick['tickIdx'], "达到最大区块号限制")
                 break
-            
-            # 如果当前批次有数据，更新tick_idx_gt为最后一个tick的tickIdx
-            if ticks:
-                tick_idx_gt = ticks[-1]['tickIdx']
             
             # 添加延迟，避免请求过于频繁
             time.sleep(1)

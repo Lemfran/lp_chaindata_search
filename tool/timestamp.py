@@ -26,3 +26,12 @@ a_timestamp = int(a_dt_with_tz.timestamp())
 
 print(timestamp)
 print(a_timestamp)
+
+
+##将时间戳转换为日期时间字符串
+
+b = "1632913200"
+
+dt_from_ts = datetime.fromtimestamp(int(b), tz=ZoneInfo('UTC'))
+
+print(dt_from_ts)

@@ -1,0 +1,10 @@
+{
+  "files": {
+    "transactions_data_ETH_1.csv": {
+      "last_processed_line": 2000,
+      "is_complete": false,
+      "last_size": 347066,
+      "last_updated": 1760932059.826925
+    }
+  }
+}

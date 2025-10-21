@@ -1,0 +1,9 @@
+{
+  "files": {
+    "transactions_data_PEPE_1.csv": {
+      "last_processed_line": 500,
+      "is_complete": false,
+      "last_size": 148290
+    }
+  }
+}
